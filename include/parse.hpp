@@ -11,6 +11,7 @@
 
 namespace stdx::details {
 
+namespace parse_value {
 template <class Int>
 std::expected<Int, scan_error> parse_int(std::string_view s, int base) {
     if (s.empty())
@@ -43,6 +44,8 @@ std::expected<Float, scan_error> parse_float(std::string_view s) {
         return std::unexpected(scan_error{"invalid floating format"});
     return value;
 }
+}
+
 
 enum class conv {
     int_, uint_, float_, string_
@@ -76,19 +79,19 @@ std::expected<T, scan_error> parse_value_with_format(std::string_view input, std
             return std::string(input);
     case conv::float_:
         if constexpr (std::is_floating_point_v<T>)
-            return parse_float<T>(input);
+            return parse_value::parse_float<T>(input);
         else 
             return std::unexpected(scan_error{"specifier 'f' incompatible with destination type"});        
     case conv::uint_:
         if constexpr (!std::is_unsigned_v<T>)
             return std::unexpected(scan_error{"specifier 'u' incompatible with destination type"});
         else
-            return parse_int<T>(input, 10);
+            return parse_value::parse_int<T>(input, 10);
     case conv::int_:
         if constexpr (!std::is_signed_v<T>)
             return std::unexpected(scan_error{"specifier 'd' incompatible with destination type"});
         else 
-            return parse_int<T>(input, 10);    
+            return parse_value::parse_int<T>(input, 10);    
     default:
         return std::unexpected(scan_error{"destination type incompatible with conversion specifier"});
     }    
