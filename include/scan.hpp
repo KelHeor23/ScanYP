@@ -1,5 +1,11 @@
 #pragma once
 
+#include <optional>
+#include <tuple>
+#include <utility>
+#include <cstddef>
+#include <expected>
+
 #include "parse.hpp"
 #include "types.hpp"
 
@@ -8,13 +14,13 @@ namespace stdx {
 template <typename... Ts>
 auto parse_all_to_tuple(std::string_view* in_parts, std::string_view* fmt_parts) {
     size_t i = 0;
-    return std::tuple{parse_value_with_format<Ts>(in_parts[i++], fmt_parts[i - 1])...};
+    return std::tuple{stdx::details::parse_value_with_format<Ts>(in_parts[i++], fmt_parts[i - 1])...};
 }
 
 template <typename... Ts>
 std::expected<details::scan_result<Ts...>, details::scan_error> scan(std::string_view input, std::string_view format) {
-    auto parsing_res = parse_sources<Ts...>(input, format);
-
+    auto parsing_res = stdx::details::parse_sources<Ts...>(input, format);
+ 
     if (!parsing_res) 
         return std::unexpected(std::move(parsing_res.error()));
 
