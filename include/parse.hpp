@@ -11,8 +11,24 @@
 
 namespace stdx::details {
 
+inline std::string_view ltrim(std::string_view s) {
+    while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front())))
+        s.remove_prefix(1);
+    return s;
+}
+
+inline std::string_view rtrim(std::string_view s) {
+    while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back())))
+        s.remove_suffix(1);
+    return s;
+}
+
+inline std::string_view trim(std::string_view s) {
+    return rtrim(ltrim(s));
+}
+
 namespace parse_value {
-template <class Int>
+template <std::integral Int>
 std::expected<Int, scan_error> parse_int(std::string_view s, int base) {
     if (s.empty())
         return std::unexpected(scan_error{"empty input for integer"});
@@ -21,6 +37,9 @@ std::expected<Int, scan_error> parse_int(std::string_view s, int base) {
         if (!s.empty() && s.front() == '-')
             return std::unexpected(scan_error{"negative value for unsigned type"});
     }
+
+    if (s.front() == '+')
+        s.remove_prefix(1);
 
     Int value{};
     auto* first = s.data();
@@ -52,16 +71,18 @@ enum class conv {
 };
 
 inline std::expected<conv, scan_error> parse_conv(std::string_view fmt) {
-    if (fmt == "d") return conv::int_;
-    if (fmt == "s") return conv::string_;
-    if (fmt == "u") return conv::uint_;
-    if (fmt == "f") return conv::float_;
+    if (fmt == "%d") return conv::int_;
+    if (fmt == "%s") return conv::string_;
+    if (fmt == "%u") return conv::uint_;
+    if (fmt == "%f") return conv::float_;
     return std::unexpected(scan_error{"unknown conversion specifier: " + std::string(fmt)});
 }
 
 // Функция для парсинга значения с учетом спецификатора формата
 template <typename T>
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
+    if (fmt == "")
+        std::cout << input;
     auto conv_kind_temp = parse_conv(fmt);
     if (!conv_kind_temp)
         return std::unexpected(std::move(conv_kind_temp.error()));
@@ -71,27 +92,27 @@ std::expected<T, scan_error> parse_value_with_format(std::string_view input, std
     switch (conv_kind)
     {
     case conv::string_:
-        if (!(std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>))
-            return std::unexpected(scan_error{"specifier 's' incompatible with destination type"});
         if constexpr (std::is_same_v<T, std::string_view>)
             return input;
-        else
+        else if constexpr (std::is_same_v<T, std::string>)
             return std::string(input);
+        else 
+            return std::unexpected(scan_error{"specifier 's' incompatible with destination type"});
     case conv::float_:
         if constexpr (std::is_floating_point_v<T>)
-            return parse_value::parse_float<T>(input);
+            return parse_value::parse_float<T>(trim(input));
         else 
             return std::unexpected(scan_error{"specifier 'f' incompatible with destination type"});        
     case conv::uint_:
-        if constexpr (!std::is_unsigned_v<T>)
-            return std::unexpected(scan_error{"specifier 'u' incompatible with destination type"});
+        if constexpr (std::is_integral_v<T> && std::is_unsigned_v<T>)
+            return parse_value::parse_int<T>(trim(input), 10);
         else
-            return parse_value::parse_int<T>(input, 10);
+            return std::unexpected(scan_error{"specifier 'u' incompatible with destination type"});
     case conv::int_:
-        if constexpr (!std::is_signed_v<T>)
+        if constexpr (std::is_integral_v<T> && std::is_signed_v<T>)
+            return parse_value::parse_int<T>(trim(input), 10);
+         else
             return std::unexpected(scan_error{"specifier 'd' incompatible with destination type"});
-        else 
-            return parse_value::parse_int<T>(input, 10);    
     default:
         return std::unexpected(scan_error{"destination type incompatible with conversion specifier"});
     }    
