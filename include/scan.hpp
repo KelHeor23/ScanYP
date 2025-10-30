@@ -63,17 +63,18 @@ std::expected<details::scan_result<Ts...>, details::scan_error> scan(std::string
 
     std::optional<details::scan_error> first_err;
     std::size_t first_err_idx = N;
-    std::size_t idx = 0;
 
-    std::apply([&](auto&&... exps){
+    auto find_first_err = [&]<std::size_t... Is>(std::index_sequence<Is...>) {
         (([&]{
-            if (!exps && !first_err) {
-                first_err = exps.error();
-                first_err_idx = idx;
+            auto&& ex = std::get<Is>(parsed_tuple);
+            if (!ex && !first_err) {
+                first_err = ex.error();
+                first_err_idx = Is;
             }
-            ++idx;
         }()), ...);
-    }, parsed_tuple);
+    };
+
+    find_first_err((std::make_index_sequence<N>{}));
 
     if (first_err)
         return std::unexpected(std::move(*first_err));    
