@@ -51,7 +51,7 @@ std::expected<Int, scan_error> parse_int(std::string_view s, int base) {
     return value;
 }
 
-template <class Float>
+template <std::floating_point Float>
 std::expected<Float, scan_error> parse_float(std::string_view s) {
     if (s.empty())
         return std::unexpected(scan_error{"empty input for floating"});
