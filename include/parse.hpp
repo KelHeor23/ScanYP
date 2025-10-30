@@ -66,6 +66,40 @@ std::expected<Float, scan_error> parse_float(std::string_view s) {
 }
 }
 
+namespace concepts {
+template <class T>
+concept StringLike =
+    std::same_as<std::remove_cvref_t<T>, std::string> ||
+    std::same_as<std::remove_cvref_t<T>, std::string_view>;
+
+template <class T>
+concept HasParseFloat =
+    std::floating_point<T> &&
+    requires(std::string_view s) {
+        { parse_value::parse_float<T>(s) } -> std::same_as<std::expected<T, scan_error>>;
+    };
+
+template <class T>
+concept HasParseIntSigned =
+    std::signed_integral<T> &&
+    requires(std::string_view s) {
+        { parse_value::parse_int<T>(s, 10) } -> std::same_as<std::expected<T, scan_error>>;
+    };
+
+template <class T>
+concept HasParseIntUnsigned =
+    std::unsigned_integral<T> &&
+    requires(std::string_view s) {
+        { parse_value::parse_int<T>(s, 10) } -> std::same_as<std::expected<T, scan_error>>;
+    };
+
+template <class T>
+concept ParsableWithFormat =
+       StringLike<T>
+    || HasParseFloat<T>
+    || HasParseIntSigned<T>
+    || HasParseIntUnsigned<T>;
+}
 
 enum class conv {
     int_, uint_, float_, string_
@@ -97,7 +131,7 @@ static inline std::unexpected<scan_error> spec_error(conv c) {
 }
 
 // Функция для парсинга значения с учетом спецификатора формата
-template <typename T>
+template <concepts::ParsableWithFormat T>
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
 auto conv_kind_res = parse_conv(fmt);
     if (!conv_kind_res)
@@ -107,27 +141,20 @@ auto conv_kind_res = parse_conv(fmt);
 
     if constexpr (std::is_same_v<T, std::string_view>) {
         if (c == conv::string_) return input;
-    }
-    else if constexpr (std::is_same_v<T, std::string>) {
+    } else if constexpr (std::is_same_v<T, std::string>) {
         if (c == conv::string_) return std::string(input);
-    }
-    else if constexpr (std::is_floating_point_v<T>) {
+    } else if constexpr (std::is_floating_point_v<T>) {
         if (c == conv::float_)
             return parse_value::parse_float<T>(common::trim(input));
-    }
-    else if constexpr (std::is_integral_v<T>) {
+    } else if constexpr (std::is_integral_v<T>) {
         const std::string_view t = common::trim(input);
-
         if (c == conv::int_  && std::is_signed_v<T>)
             return parse_value::parse_int<T>(t, 10);
-
         if (c == conv::uint_ && std::is_unsigned_v<T>)
             return parse_value::parse_int<T>(t, 10);
     }
-    else {
-        return std::unexpected(scan_error{"unsupported destination type"});
-    }
-    // Если не нашли соответствия - выбрасываем ошибку
+
+    // Если дошли до сюда, значит есть явная ошибка 
     return spec_error<T>(c);
 }
 
