@@ -24,9 +24,10 @@ inline std::string_view rtrim(std::string_view s) {
     return s;
 }
 
-inline std::string_view trim(std::string_view s) {
+constexpr std::string_view trim(std::string_view s) {
     return rtrim(ltrim(s));
 }
+
 }
 namespace parse_value {
 template <std::integral Int>
@@ -105,7 +106,7 @@ enum class conv {
     int_, uint_, float_, string_
 };
 
-inline std::expected<conv, scan_error> parse_conv(std::string_view fmt) {
+constexpr std::expected<conv, scan_error> parse_conv(std::string_view fmt) {
     if (fmt == "%d") return conv::int_;
     if (fmt == "%s") return conv::string_;
     if (fmt == "%u") return conv::uint_;
@@ -124,7 +125,7 @@ static constexpr char spec_char(conv c) noexcept {
 }
 
 template <typename T>
-static inline std::unexpected<scan_error> spec_error(conv c) {
+constexpr std::unexpected<scan_error> spec_error(conv c) {
     return std::unexpected(scan_error{
         std::string("specifier '") + spec_char(c) + "' incompatible with destination type"
     });
@@ -132,7 +133,7 @@ static inline std::unexpected<scan_error> spec_error(conv c) {
 
 // Функция для парсинга значения с учетом спецификатора формата
 template <concepts::ParsableWithFormat T>
-std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
+constexpr std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
 auto conv_kind_res = parse_conv(fmt);
     if (!conv_kind_res)
         return std::unexpected(std::move(conv_kind_res.error()));
