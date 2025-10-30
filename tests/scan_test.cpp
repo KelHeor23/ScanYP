@@ -8,6 +8,21 @@ decltype(auto) as_tuple(const Result& r) {
     return r.values();
 }
 
+TEST(Scan, ParsesUUUU) {
+    using std::string;
+    std::string_view input  = "name=1; id=2; temp=3; delta=4";
+    std::string_view format = "name={%u}; id={%u}; temp={%u}; delta={%u}";
+
+    auto res = stdx::scan<unsigned, unsigned, unsigned, unsigned>(input, format);
+    ASSERT_TRUE(res.has_value());
+
+    const auto& [first, second, third, fourth] = as_tuple(res.value());
+    EXPECT_EQ(first, 1u);
+    EXPECT_EQ(second, 2u);
+    EXPECT_EQ(third, 3u);
+    EXPECT_EQ(fourth, 4u);
+}
+
 TEST(Scan, ParsesSUFI) {
     using std::string;
     std::string_view input  = "name=alpha; id=42; temp=3.5; delta=-7";
@@ -35,6 +50,30 @@ TEST(Scan, ParsesSvI) {
     EXPECT_EQ(val, 101);
 }
 
+TEST(Scan, ParsesSS) {
+    std::string_view input  = "key=xyz value=101";
+    std::string_view format = "key={%s} value={%s}";
+
+    auto res = stdx::scan<std::string, std::string>(input, format);
+    ASSERT_TRUE(res.has_value());
+
+    const auto& [key, val] = as_tuple(res.value());
+    EXPECT_EQ(key, std::string_view("xyz"));
+    EXPECT_EQ(val, std::string_view("101"));
+}
+
+TEST(Scan, ParsesSvSv) {
+    std::string_view input  = "key=xyz value=101";
+    std::string_view format = "key={%s} value={%s}";
+
+    auto res = stdx::scan<std::string_view, std::string_view>(input, format);
+    ASSERT_TRUE(res.has_value());
+
+    const auto& [key, val] = as_tuple(res.value());
+    EXPECT_EQ(key, std::string_view("xyz"));
+    EXPECT_EQ(val, std::string_view("101"));
+}
+
 TEST(Scan, ParsesMultipleSpacesAndSigns) {
     std::string_view input  = "a=   -12  b=+34  c=0";
     std::string_view format = "a={%d}  b={%d}  c={%d}";
@@ -46,6 +85,22 @@ TEST(Scan, ParsesMultipleSpacesAndSigns) {
     EXPECT_EQ(a, -12);
     EXPECT_EQ(b, 34);
     EXPECT_EQ(c, 0);
+}
+
+TEST(Scan, ParsesFullEmpty) {
+    std::string_view input  = "";
+    std::string_view format = "";
+
+    auto res = stdx::scan<>(input, format);
+    ASSERT_FALSE(res.has_value());
+}
+
+TEST(Scan, ParsesFullEmptyFormat) {
+    std::string_view input  = "a=   -12  b=+34  c=0";
+    std::string_view format = "a={}  b={}  c={}";
+
+    auto res = stdx::scan<>(input, format);
+    ASSERT_TRUE(res.has_value());
 }
 
 TEST(Scan, ParsesEmptyFormat) {
