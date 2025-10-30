@@ -11,6 +11,7 @@
 
 namespace stdx {
 
+namespace  pearse_to_tuple{
 template <typename... Ts, std::size_t... I>
 auto parse_all_to_tuple_impl(std::string_view* in_parts,
                              std::string_view* fmt_parts,
@@ -25,6 +26,7 @@ auto parse_all_to_tuple(std::string_view* in_parts, std::string_view* fmt_parts)
     return parse_all_to_tuple_impl<Ts...>(
         in_parts, fmt_parts, std::index_sequence_for<Ts...>{}
     );
+}
 }
 
 template <typename... Ts>
@@ -57,7 +59,7 @@ std::expected<details::scan_result<Ts...>, details::scan_error> scan(std::string
         });
     }
 
-    auto parsed_tuple = parse_all_to_tuple<Ts...>(in_parts.data(), fmt_parts.data());
+    auto parsed_tuple = pearse_to_tuple::parse_all_to_tuple<Ts...>(in_parts.data(), fmt_parts.data());
 
     std::optional<details::scan_error> first_err;
     std::size_t first_err_idx = N;

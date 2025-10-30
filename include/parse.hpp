@@ -11,6 +11,7 @@
 
 namespace stdx::details {
 
+namespace common {
 inline std::string_view ltrim(std::string_view s) {
     while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front())))
         s.remove_prefix(1);
@@ -26,7 +27,7 @@ inline std::string_view rtrim(std::string_view s) {
 inline std::string_view trim(std::string_view s) {
     return rtrim(ltrim(s));
 }
-
+}
 namespace parse_value {
 template <std::integral Int>
 std::expected<Int, scan_error> parse_int(std::string_view s, int base) {
@@ -81,8 +82,6 @@ inline std::expected<conv, scan_error> parse_conv(std::string_view fmt) {
 // Функция для парсинга значения с учетом спецификатора формата
 template <typename T>
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
-    if (fmt == "")
-        std::cout << input;
     auto conv_kind_temp = parse_conv(fmt);
     if (!conv_kind_temp)
         return std::unexpected(std::move(conv_kind_temp.error()));
@@ -100,17 +99,17 @@ std::expected<T, scan_error> parse_value_with_format(std::string_view input, std
             return std::unexpected(scan_error{"specifier 's' incompatible with destination type"});
     case conv::float_:
         if constexpr (std::is_floating_point_v<T>)
-            return parse_value::parse_float<T>(trim(input));
+            return parse_value::parse_float<T>(common::trim(input));
         else 
             return std::unexpected(scan_error{"specifier 'f' incompatible with destination type"});        
     case conv::uint_:
         if constexpr (std::is_integral_v<T> && std::is_unsigned_v<T>)
-            return parse_value::parse_int<T>(trim(input), 10);
+            return parse_value::parse_int<T>(common::trim(input), 10);
         else
             return std::unexpected(scan_error{"specifier 'u' incompatible with destination type"});
     case conv::int_:
         if constexpr (std::is_integral_v<T> && std::is_signed_v<T>)
-            return parse_value::parse_int<T>(trim(input), 10);
+            return parse_value::parse_int<T>(common::trim(input), 10);
          else
             return std::unexpected(scan_error{"specifier 'd' incompatible with destination type"});
     default:
