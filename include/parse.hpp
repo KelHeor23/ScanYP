@@ -79,42 +79,56 @@ inline std::expected<conv, scan_error> parse_conv(std::string_view fmt) {
     return std::unexpected(scan_error{"unknown conversion specifier: " + std::string(fmt)});
 }
 
+static constexpr char spec_char(conv c) noexcept {
+    switch (c) {
+        case conv::string_: return 's';
+        case conv::float_:  return 'f';
+        case conv::uint_:   return 'u';
+        case conv::int_:    return 'd';
+    }
+    return '?'; // на всякий
+}
+
+template <typename T>
+static inline std::unexpected<scan_error> spec_error(conv c) {
+    return std::unexpected(scan_error{
+        std::string("specifier '") + spec_char(c) + "' incompatible with destination type"
+    });
+}
+
 // Функция для парсинга значения с учетом спецификатора формата
 template <typename T>
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
-    auto conv_kind_temp = parse_conv(fmt);
-    if (!conv_kind_temp)
-        return std::unexpected(std::move(conv_kind_temp.error()));
+auto conv_kind_res = parse_conv(fmt);
+    if (!conv_kind_res)
+        return std::unexpected(std::move(conv_kind_res.error()));
 
-    auto conv_kind = *conv_kind_temp;
+    const conv c = *conv_kind_res;
 
-    switch (conv_kind)
-    {
-    case conv::string_:
-        if constexpr (std::is_same_v<T, std::string_view>)
-            return input;
-        else if constexpr (std::is_same_v<T, std::string>)
-            return std::string(input);
-        else 
-            return std::unexpected(scan_error{"specifier 's' incompatible with destination type"});
-    case conv::float_:
-        if constexpr (std::is_floating_point_v<T>)
+    if constexpr (std::is_same_v<T, std::string_view>) {
+        if (c == conv::string_) return input;
+    }
+    else if constexpr (std::is_same_v<T, std::string>) {
+        if (c == conv::string_) return std::string(input);
+    }
+    else if constexpr (std::is_floating_point_v<T>) {
+        if (c == conv::float_)
             return parse_value::parse_float<T>(common::trim(input));
-        else 
-            return std::unexpected(scan_error{"specifier 'f' incompatible with destination type"});        
-    case conv::uint_:
-        if constexpr (std::is_integral_v<T> && std::is_unsigned_v<T>)
-            return parse_value::parse_int<T>(common::trim(input), 10);
-        else
-            return std::unexpected(scan_error{"specifier 'u' incompatible with destination type"});
-    case conv::int_:
-        if constexpr (std::is_integral_v<T> && std::is_signed_v<T>)
-            return parse_value::parse_int<T>(common::trim(input), 10);
-         else
-            return std::unexpected(scan_error{"specifier 'd' incompatible with destination type"});
-    default:
-        return std::unexpected(scan_error{"destination type incompatible with conversion specifier"});
-    }    
+    }
+    else if constexpr (std::is_integral_v<T>) {
+        const std::string_view t = common::trim(input);
+
+        if (c == conv::int_  && std::is_signed_v<T>)
+            return parse_value::parse_int<T>(t, 10);
+
+        if (c == conv::uint_ && std::is_unsigned_v<T>)
+            return parse_value::parse_int<T>(t, 10);
+    }
+    else {
+        return std::unexpected(scan_error{"unsupported destination type"});
+    }
+    // Если не нашли соответствия - выбрасываем ошибку
+    return spec_error<T>(c);
 }
 
 // Функция для проверки корректности входных данных и выделения из обеих строк интересующих данных для парсинга
